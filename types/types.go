@@ -1,6 +1,6 @@
 package types
 
-type Data = interface{}
+type Data = int
 
 type Size = int
 

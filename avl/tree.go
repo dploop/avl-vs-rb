@@ -1,6 +1,8 @@
 package avl
 
 import (
+	"fmt"
+
 	"github.com/dploop/avl-vs-rb/types"
 )
 
@@ -100,30 +102,31 @@ func (t *Tree) Delete(z *Node) *Node {
 
 func (t *Tree) insert(z *Node) {
 	x := t.sent
-	less := true
+	isLeft := true
 	y := x.left
 	for y != nil {
 		x = y
-		less = t.less(z.data, y.data)
-		if less {
+		isLeft = t.less(z.data, y.data)
+		if isLeft {
 			y = y.left
 		} else {
 			y = y.right
 		}
 	}
 	z.parent = x
-	if less {
+	if isLeft {
 		x.left = z
 	} else {
 		x.right = z
 	}
-	t.balanceAfterInsert(x, z)
+	t.balanceAfterInsert(x, isLeft)
 	t.size++
 }
 
-func (t *Tree) balanceAfterInsert(x *Node, z *Node) {
-	for ; x != t.sent; z, x = x, z.parent {
-		if z == x.right {
+func (t *Tree) balanceAfterInsert(x *Node, isLeft bool) {
+	for ; x != t.sent; x = x.parent {
+		if !isLeft {
+			z := x.right
 			switch x.factor {
 			case leftHeavy:
 				x.factor = balanced
@@ -137,8 +140,10 @@ func (t *Tree) balanceAfterInsert(x *Node, z *Node) {
 				return
 			default:
 				x.factor = rightHeavy
+				isLeft = x == x.parent.left
 			}
 		} else {
+			z := x.left
 			switch x.factor {
 			case rightHeavy:
 				x.factor = balanced
@@ -152,19 +157,33 @@ func (t *Tree) balanceAfterInsert(x *Node, z *Node) {
 				return
 			default:
 				x.factor = leftHeavy
+				isLeft = x == x.parent.left
 			}
 		}
 	}
 }
 
 func (t *Tree) delete(z *Node) {
+
+	if z.data == 5577006791947779410 {
+		fmt.Println("~~~~~~~~~~~~")
+	}
+
 	var x, n *Node
-	if z.right == nil {
-		x, n = z.parent, z.left
+	var isLeft bool
+	switch {
+	case z.left == nil:
+		x, n = z.parent, z.right
+		isLeft = z == z.parent.left
 		transplant(z, n)
-	} else {
+	case z.right == nil:
+		x, n = z.parent, z.left
+		isLeft = z == z.parent.left
+		transplant(z, n)
+	default:
 		y := minimum(z.right)
 		x, n = y, y.right
+		isLeft = y == y.parent.left
 		if y.parent != z {
 			x = y.parent
 			transplant(y, n)
@@ -176,13 +195,13 @@ func (t *Tree) delete(z *Node) {
 		y.left.parent = y
 		y.factor = z.factor
 	}
-	t.balanceAfterDelete(x, n)
+	t.balanceAfterDelete(x, isLeft)
 	t.size--
 }
 
-func (t *Tree) balanceAfterDelete(x *Node, n *Node) {
-	for ; x != t.sent; n, x = x, x.parent {
-		if n == x.left {
+func (t *Tree) balanceAfterDelete(x *Node, isLeft bool) {
+	for ; x != t.sent; x = x.parent {
+		if isLeft {
 			switch x.factor {
 			case balanced:
 				x.factor = rightHeavy
@@ -193,14 +212,16 @@ func (t *Tree) balanceAfterDelete(x *Node, n *Node) {
 					rotateRightLeft(x)
 				} else {
 					rotateLeft(x)
-					if b == rightHeavy {
-						x = x.parent
-						continue
-					}
+				}
+				if b != balanced {
+					x = x.parent
+					isLeft = x == x.parent.left
+					continue
 				}
 				return
 			default:
 				x.factor = balanced
+				isLeft = x == x.parent.left
 			}
 		} else {
 			switch x.factor {
@@ -213,14 +234,16 @@ func (t *Tree) balanceAfterDelete(x *Node, n *Node) {
 					rotateLeftRight(x)
 				} else {
 					rotateRight(x)
-					if b == leftHeavy {
-						x = x.parent
-						continue
-					}
+				}
+				if b != balanced {
+					x = x.parent
+					isLeft = x == x.parent.left
+					continue
 				}
 				return
 			default:
 				x.factor = balanced
+				isLeft = x == x.parent.left
 			}
 		}
 	}
@@ -271,13 +294,18 @@ func predecessor(x *Node) *Node {
 	return x.parent
 }
 
-func rotateLeft(x *Node) *Node {
+func rotateLeft(x *Node) {
 	z := x.right
 	x.right = z.left
 	if z.left != nil {
 		z.left.parent = x
 	}
-	transplant(x, z)
+	z.parent = x.parent
+	if x == x.parent.left {
+		x.parent.left = z
+	} else {
+		x.parent.right = z
+	}
 	z.left = x
 	x.parent = z
 	if z.factor == balanced {
@@ -285,15 +313,20 @@ func rotateLeft(x *Node) *Node {
 	} else {
 		x.factor, z.factor = balanced, balanced
 	}
-	return z
 }
 
-func rotateRight(x *Node) *Node {
+func rotateRight(x *Node) {
 	z := x.left
-	if z.left != nil {
-		z.left.parent = x
+	x.left = z.right
+	if z.right != nil {
+		z.right.parent = x
 	}
-	transplant(x, z)
+	z.parent = x.parent
+	if x == x.parent.right {
+		x.parent.right = z
+	} else {
+		x.parent.left = z
+	}
 	z.right = x
 	x.parent = z
 	if z.factor == balanced {
@@ -301,10 +334,9 @@ func rotateRight(x *Node) *Node {
 	} else {
 		x.factor, z.factor = balanced, balanced
 	}
-	return z
 }
 
-func rotateRightLeft(x *Node) *Node {
+func rotateRightLeft(x *Node) {
 	z := x.right
 	y := z.left
 	z.left = y.right
@@ -317,7 +349,12 @@ func rotateRightLeft(x *Node) *Node {
 	if y.left != nil {
 		y.left.parent = x
 	}
-	transplant(x, y)
+	y.parent = x.parent
+	if x == x.parent.left {
+		x.parent.left = y
+	} else {
+		x.parent.right = y
+	}
 	y.left = x
 	x.parent = y
 	switch y.factor {
@@ -329,10 +366,9 @@ func rotateRightLeft(x *Node) *Node {
 		x.factor, z.factor = balanced, balanced
 	}
 	y.factor = balanced
-	return y
 }
 
-func rotateLeftRight(x *Node) *Node {
+func rotateLeftRight(x *Node) {
 	z := x.left
 	y := z.right
 	z.right = y.left
@@ -345,7 +381,12 @@ func rotateLeftRight(x *Node) *Node {
 	if y.right != nil {
 		y.right.parent = x
 	}
-	transplant(x, y)
+	y.parent = x.parent
+	if x == x.parent.right {
+		x.parent.right = y
+	} else {
+		x.parent.left = y
+	}
 	y.right = x
 	x.parent = y
 	switch y.factor {
@@ -357,5 +398,4 @@ func rotateLeftRight(x *Node) *Node {
 		x.factor, z.factor = balanced, balanced
 	}
 	y.factor = balanced
-	return y
 }
