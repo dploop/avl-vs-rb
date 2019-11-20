@@ -20,8 +20,12 @@ type Node struct {
 	data   types.Data
 }
 
-func (n *Node) Data() types.Data {
+func (n *Node) Get() types.Data {
 	return n.data
+}
+
+func (n *Node) Set(data types.Data) {
+	n.data = data
 }
 
 func (n *Node) Next() *Node {
@@ -47,7 +51,7 @@ func (n *Node) Prev() *Node {
 }
 
 func (n *Node) ReverseData() types.Data {
-	return n.Prev().Data()
+	return n.Prev().Get()
 }
 
 func (n *Node) ReverseNext() *Node {

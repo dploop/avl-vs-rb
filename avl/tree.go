@@ -1,6 +1,7 @@
 package avl
 
 import (
+	"github.com/dploop/avl-vs-rb/stats"
 	"github.com/dploop/avl-vs-rb/types"
 )
 
@@ -50,6 +51,7 @@ func (t *Tree) ReverseEnd() *Node {
 func (t *Tree) FindFirst(data types.Data) *Node {
 	x := t.end()
 	for y := x.left; y != nil; {
+		stats.FindLoopCounter++
 		if t.less(y.data, data) {
 			y = y.right
 		} else {
@@ -65,6 +67,7 @@ func (t *Tree) FindFirst(data types.Data) *Node {
 func (t *Tree) FindLast(data types.Data) *Node {
 	x := t.end()
 	for y := x.left; y != nil; {
+		stats.FindLoopCounter++
 		if t.less(data, y.data) {
 			y = y.left
 		} else {
@@ -80,6 +83,7 @@ func (t *Tree) FindLast(data types.Data) *Node {
 func (t *Tree) LowerBound(data types.Data) *Node {
 	x := t.end()
 	for y := x.left; y != nil; {
+		stats.FindLoopCounter++
 		if t.less(y.data, data) {
 			y = y.right
 		} else {
@@ -92,6 +96,7 @@ func (t *Tree) LowerBound(data types.Data) *Node {
 func (t *Tree) UpperBound(data types.Data) *Node {
 	x := t.end()
 	for y := x.left; y != nil; {
+		stats.FindLoopCounter++
 		if !t.less(data, y.data) {
 			y = y.right
 		} else {
@@ -107,11 +112,12 @@ func (t *Tree) Clear() {
 	t.size = 0
 }
 
-func (t *Tree) InsertFirst(data types.Data) *Node {
-	z := &Node{factor: Balanced, data: data}
+func (t *Tree) InsertFirst(z *Node) {
+	z.factor = Balanced
 	x, childIsLeft := t.end(), true
 	for y := x.left; y != nil; {
-		x, childIsLeft = y, !t.less(y.data, data)
+		stats.InsertFindLoopCounter++
+		x, childIsLeft = y, !t.less(y.data, z.data)
 		if childIsLeft {
 			y = y.left
 		} else {
@@ -129,14 +135,14 @@ func (t *Tree) InsertFirst(data types.Data) *Node {
 	}
 	t.balanceAfterInsert(x, childIsLeft)
 	t.size++
-	return z
 }
 
-func (t *Tree) InsertLast(data types.Data) *Node {
-	z := &Node{factor: Balanced, data: data}
+func (t *Tree) InsertLast(z *Node) *Node {
+	z.factor = Balanced
 	x, childIsLeft := t.end(), true
 	for y := x.left; y != nil; {
-		x, childIsLeft = y, t.less(data, y.data)
+		stats.InsertFindLoopCounter++
+		x, childIsLeft = y, t.less(z.data, y.data)
 		if childIsLeft {
 			y = y.left
 		} else {
@@ -159,6 +165,7 @@ func (t *Tree) InsertLast(data types.Data) *Node {
 
 func (t *Tree) balanceAfterInsert(x *Node, childIsLeft bool) {
 	for ; x != t.end(); x = x.parent {
+		stats.InsertBalanceLoopCounter++
 		if !childIsLeft {
 			switch x.factor {
 			case LeftHeavy:
@@ -166,8 +173,10 @@ func (t *Tree) balanceAfterInsert(x *Node, childIsLeft bool) {
 				return
 			case RightHeavy:
 				if x.right.factor == LeftHeavy {
+					stats.InsertRotateCounter += 2
 					rotateRightLeft(x)
 				} else {
+					stats.InsertRotateCounter++
 					rotateLeft(x)
 				}
 				return
@@ -181,8 +190,10 @@ func (t *Tree) balanceAfterInsert(x *Node, childIsLeft bool) {
 				return
 			case LeftHeavy:
 				if x.left.factor == RightHeavy {
+					stats.InsertRotateCounter += 2
 					rotateLeftRight(x)
 				} else {
+					stats.InsertRotateCounter++
 					rotateRight(x)
 				}
 				return
@@ -224,6 +235,7 @@ func (t *Tree) Delete(z *Node) {
 
 func (t *Tree) balanceAfterDelete(x *Node, childIsLeft bool) {
 	for ; x != t.end(); x = x.parent {
+		stats.DeleteBalanceLoopCounter++
 		if childIsLeft {
 			switch x.factor {
 			case Balanced:
@@ -232,8 +244,10 @@ func (t *Tree) balanceAfterDelete(x *Node, childIsLeft bool) {
 			case RightHeavy:
 				b := x.right.factor
 				if b == LeftHeavy {
+					stats.DeleteRotateCounter += 2
 					rotateRightLeft(x)
 				} else {
+					stats.DeleteRotateCounter++
 					rotateLeft(x)
 				}
 				if b == Balanced {
@@ -251,8 +265,10 @@ func (t *Tree) balanceAfterDelete(x *Node, childIsLeft bool) {
 			case LeftHeavy:
 				b := x.left.factor
 				if b == RightHeavy {
+					stats.DeleteRotateCounter += 2
 					rotateLeftRight(x)
 				} else {
+					stats.DeleteRotateCounter++
 					rotateRight(x)
 				}
 				if b == Balanced {

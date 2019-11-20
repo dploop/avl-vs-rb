@@ -4,19 +4,24 @@ import (
 	"github.com/dploop/avl-vs-rb/types"
 )
 
-func (t *Tree) Height() types.Size {
-	return height(t.sent.left)
-}
-
-func height(x *Node) types.Size {
-	if x == nil {
+func (t *Tree) HeightForStats() types.Size {
+	if t.end().left == nil {
 		return 0
 	}
-	p := height(x.left)
-	q := height(x.right)
-	if p < q {
-		return q + 1
-	} else {
-		return p + 1
+	return heightForStats(t.end().left)
+}
+
+func heightForStats(x *Node) types.Size {
+	lh := 0
+	if x.left != nil {
+		lh = heightForStats(x.left) + 1
 	}
+	rh := 0
+	if x.right != nil {
+		rh = heightForStats(x.right) + 1
+	}
+	if lh < rh {
+		return rh
+	}
+	return lh
 }

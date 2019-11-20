@@ -1,6 +1,7 @@
 package rb
 
 import (
+	"github.com/dploop/avl-vs-rb/stats"
 	"github.com/dploop/avl-vs-rb/types"
 )
 
@@ -50,6 +51,7 @@ func (t *Tree) ReverseEnd() *Node {
 func (t *Tree) FindFirst(data types.Data) *Node {
 	x := t.end()
 	for y := x.left; y != nil; {
+		stats.FindLoopCounter++
 		if t.less(y.data, data) {
 			y = y.right
 		} else {
@@ -65,6 +67,7 @@ func (t *Tree) FindFirst(data types.Data) *Node {
 func (t *Tree) FindLast(data types.Data) *Node {
 	x := t.end()
 	for y := x.left; y != nil; {
+		stats.FindLoopCounter++
 		if t.less(data, y.data) {
 			y = y.left
 		} else {
@@ -80,6 +83,7 @@ func (t *Tree) FindLast(data types.Data) *Node {
 func (t *Tree) LowerBound(data types.Data) *Node {
 	x := t.end()
 	for y := x.left; y != nil; {
+		stats.FindLoopCounter++
 		if t.less(y.data, data) {
 			y = y.right
 		} else {
@@ -92,6 +96,7 @@ func (t *Tree) LowerBound(data types.Data) *Node {
 func (t *Tree) UpperBound(data types.Data) *Node {
 	x := t.end()
 	for y := x.left; y != nil; {
+		stats.FindLoopCounter++
 		if !t.less(data, y.data) {
 			y = y.right
 		} else {
@@ -107,11 +112,12 @@ func (t *Tree) Clear() {
 	t.size = 0
 }
 
-func (t *Tree) InsertFirst(data types.Data) *Node {
-	z := &Node{color: Red, data: data}
+func (t *Tree) InsertFirst(z *Node) {
+	z.color = Red
 	x, childIsLeft := t.end(), true
 	for y := x.left; y != nil; {
-		x, childIsLeft = y, !t.less(y.data, data)
+		stats.InsertFindLoopCounter++
+		x, childIsLeft = y, !t.less(y.data, z.data)
 		if childIsLeft {
 			y = y.left
 		} else {
@@ -129,14 +135,14 @@ func (t *Tree) InsertFirst(data types.Data) *Node {
 	}
 	t.balanceAfterInsert(x, z)
 	t.size++
-	return z
 }
 
-func (t *Tree) InsertLast(data types.Data) *Node {
-	z := &Node{color: Red, data: data}
+func (t *Tree) InsertLast(z *Node) {
+	z.color = Red
 	x, childIsLeft := t.end(), true
 	for y := x.left; y != nil; {
-		x, childIsLeft = y, t.less(data, y.data)
+		stats.InsertFindLoopCounter++
+		x, childIsLeft = y, t.less(z.data, y.data)
 		if childIsLeft {
 			y = y.left
 		} else {
@@ -154,11 +160,11 @@ func (t *Tree) InsertLast(data types.Data) *Node {
 	}
 	t.balanceAfterInsert(x, z)
 	t.size++
-	return z
 }
 
 func (t *Tree) balanceAfterInsert(x *Node, z *Node) {
 	for ; x != t.end() && x.color == Red; x = z.parent {
+		stats.InsertBalanceLoopCounter++
 		if x == x.parent.left {
 			y := x.parent.right
 			if isRed(y) {
@@ -170,12 +176,14 @@ func (t *Tree) balanceAfterInsert(x *Node, z *Node) {
 			} else {
 				if z == x.right {
 					z = x
+					stats.InsertRotateCounter++
 					rotateLeft(z)
 				}
 				z = z.parent
 				z.color = Black
 				z = z.parent
 				z.color = Red
+				stats.InsertRotateCounter++
 				rotateRight(z)
 			}
 		} else {
@@ -189,12 +197,14 @@ func (t *Tree) balanceAfterInsert(x *Node, z *Node) {
 			} else {
 				if z == x.left {
 					z = x
+					stats.InsertRotateCounter++
 					rotateRight(z)
 				}
 				z = z.parent
 				z.color = Black
 				z = z.parent
 				z.color = Red
+				stats.InsertRotateCounter++
 				rotateLeft(z)
 			}
 		}
@@ -206,17 +216,19 @@ func (t *Tree) Delete(z *Node) {
 	if t.begin == z {
 		t.begin = z.Next()
 	}
-	var x, n *Node
+	x, color := z.parent, z.color
+	var n *Node
 	switch {
 	case z.left == nil:
-		x, n = z.parent, z.right
+		n = z.right
 		transplant(z, n)
 	case z.right == nil:
-		x, n = z.parent, z.left
+		n = z.left
 		transplant(z, n)
 	default:
 		y := minimum(z.right)
-		x, n = y, y.right
+		x, color = y, y.color
+		n = y.right
 		if y.parent != z {
 			x = y.parent
 			transplant(y, n)
@@ -228,7 +240,7 @@ func (t *Tree) Delete(z *Node) {
 		y.left.parent = y
 		y.color = z.color
 	}
-	if z.color == Black {
+	if color == Black {
 		t.balanceAfterDelete(x, n)
 	}
 	t.size--
@@ -236,11 +248,13 @@ func (t *Tree) Delete(z *Node) {
 
 func (t *Tree) balanceAfterDelete(x *Node, n *Node) {
 	for ; x != t.end() && isBlack(n); x = n.parent {
+		stats.DeleteBalanceLoopCounter++
 		if n == x.left {
 			z := x.right
-			if z.color == Red {
+			if isRed(z) {
 				z.color = Black
 				x.color = Red
+				stats.DeleteRotateCounter++
 				rotateLeft(x)
 				z = x.right
 			}
@@ -251,20 +265,23 @@ func (t *Tree) balanceAfterDelete(x *Node, n *Node) {
 				if isBlack(z.right) {
 					z.left.color = Black
 					z.color = Red
+					stats.DeleteRotateCounter++
 					rotateRight(z)
 					z = x.right
 				}
 				z.color = x.color
 				x.color = Black
 				z.right.color = Black
+				stats.DeleteRotateCounter++
 				rotateLeft(x)
 				n = t.end().left
 			}
 		} else {
 			z := x.left
-			if z.color == Red {
+			if isRed(z) {
 				z.color = Black
 				x.color = Red
+				stats.DeleteRotateCounter++
 				rotateRight(x)
 				z = x.left
 			}
@@ -275,12 +292,14 @@ func (t *Tree) balanceAfterDelete(x *Node, n *Node) {
 				if isBlack(z.left) {
 					z.right.color = Black
 					z.color = Red
+					stats.DeleteRotateCounter++
 					rotateLeft(z)
 					z = x.left
 				}
 				z.color = x.color
 				x.color = Black
 				z.left.color = Black
+				stats.DeleteRotateCounter++
 				rotateRight(x)
 				n = t.end().left
 			}
