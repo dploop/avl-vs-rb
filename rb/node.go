@@ -4,16 +4,18 @@ import (
 	"github.com/dploop/avl-vs-rb/types"
 )
 
+type Color int8
+
 const (
-	red   = 0
-	black = 1
+	Red   Color = 0
+	Black Color = 1
 )
 
 type Node struct {
 	parent *Node
 	left   *Node
 	right  *Node
-	color  int8
+	color  Color
 	data   types.Data
 }
 
@@ -22,9 +24,35 @@ func (n *Node) Data() types.Data {
 }
 
 func (n *Node) Next() *Node {
-	return successor(n)
+	if n.right != nil {
+		return minimum(n.right)
+	}
+	var x = n
+	for x == x.parent.right {
+		x = x.parent
+	}
+	return x.parent
 }
 
 func (n *Node) Prev() *Node {
-	return predecessor(n)
+	if n.left != nil {
+		return maximum(n.left)
+	}
+	var x = n
+	for x == x.parent.left {
+		x = x.parent
+	}
+	return x.parent
+}
+
+func (n *Node) ReverseData() types.Data {
+	return n.Prev().Data()
+}
+
+func (n *Node) ReverseNext() *Node {
+	return n.Prev()
+}
+
+func (n *Node) ReversePrev() *Node {
+	return n.Next()
 }

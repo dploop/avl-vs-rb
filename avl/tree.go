@@ -1,22 +1,22 @@
 package avl
 
 import (
-	"fmt"
-
 	"github.com/dploop/avl-vs-rb/types"
 )
 
 type Tree struct {
-	less types.Less
-	size types.Size
-	sent *Node
+	sentinel Node
+	begin    *Node
+	size     types.Size
+	less     types.Less
 }
 
 func New(less types.Less) *Tree {
-	return &Tree{
-		less: less,
-		sent: &Node{},
-	}
+	t := new(Tree)
+	t.begin = &t.sentinel
+	t.size = 0
+	t.less = less
+	return t
 }
 
 func (t *Tree) Less() types.Less {
@@ -32,161 +32,184 @@ func (t *Tree) Empty() bool {
 }
 
 func (t *Tree) Begin() *Node {
-	return minimum(t.sent)
+	return t.begin
 }
 
 func (t *Tree) End() *Node {
-	return t.sent
+	return t.end()
 }
 
 func (t *Tree) ReverseBegin() *Node {
-	return maximum(t.sent)
+	return t.end()
 }
 
 func (t *Tree) ReverseEnd() *Node {
-	return t.sent
+	return t.begin
 }
 
-func (t *Tree) Find(v types.Data) *Node {
-	y := t.LowerBound(v)
-	if y != t.sent && !t.less(v, y.data) {
-		return y
-	}
-	return t.sent
-}
-
-func (t *Tree) LowerBound(v types.Data) *Node {
-	y := t.sent
-	x := y.left
-	for x != nil {
-		if t.less(x.data, v) {
-			x = x.right
+func (t *Tree) FindFirst(data types.Data) *Node {
+	x := t.end()
+	for y := x.left; y != nil; {
+		if t.less(y.data, data) {
+			y = y.right
 		} else {
-			y = x
-			x = x.left
+			x, y = y, y.left
 		}
 	}
-	return y
+	if x != t.end() && !t.less(data, x.data) {
+		return x
+	}
+	return t.end()
 }
 
-func (t *Tree) UpperBound(v types.Data) *Node {
-	y := t.sent
-	x := y.left
-	for x != nil {
-		if !t.less(v, x.data) {
-			x = x.left
+func (t *Tree) FindLast(data types.Data) *Node {
+	x := t.end()
+	for y := x.left; y != nil; {
+		if t.less(data, y.data) {
+			y = y.left
 		} else {
-			y = x
-			x = x.right
+			x, y = y, y.right
 		}
 	}
-	return y
+	if x != t.end() && !t.less(x.data, data) {
+		return x
+	}
+	return t.end()
+}
+
+func (t *Tree) LowerBound(data types.Data) *Node {
+	x := t.end()
+	for y := x.left; y != nil; {
+		if t.less(y.data, data) {
+			y = y.right
+		} else {
+			x, y = y, y.left
+		}
+	}
+	return x
+}
+
+func (t *Tree) UpperBound(data types.Data) *Node {
+	x := t.end()
+	for y := x.left; y != nil; {
+		if !t.less(data, y.data) {
+			y = y.right
+		} else {
+			x, y = y, y.left
+		}
+	}
+	return x
 }
 
 func (t *Tree) Clear() {
+	t.end().left = nil
+	t.begin = t.end()
 	t.size = 0
-	t.sent.left = t.sent
 }
 
-func (t *Tree) Insert(v types.Data) *Node {
-	z := &Node{data: v}
-	t.insert(z)
-	return z
-}
-
-func (t *Tree) Delete(z *Node) *Node {
-	i := z.Next()
-	t.delete(z)
-	return i
-}
-
-func (t *Tree) insert(z *Node) {
-	x := t.sent
-	isLeft := true
-	y := x.left
-	for y != nil {
-		x = y
-		isLeft = t.less(z.data, y.data)
-		if isLeft {
+func (t *Tree) InsertFirst(data types.Data) *Node {
+	z := &Node{factor: Balanced, data: data}
+	x, childIsLeft := t.end(), true
+	for y := x.left; y != nil; {
+		x, childIsLeft = y, !t.less(y.data, data)
+		if childIsLeft {
 			y = y.left
 		} else {
 			y = y.right
 		}
 	}
 	z.parent = x
-	if isLeft {
+	if childIsLeft {
 		x.left = z
 	} else {
 		x.right = z
 	}
-	t.balanceAfterInsert(x, isLeft)
+	if t.begin.left != nil {
+		t.begin = t.begin.left
+	}
+	t.balanceAfterInsert(x, childIsLeft)
 	t.size++
+	return z
 }
 
-func (t *Tree) balanceAfterInsert(x *Node, isLeft bool) {
-	for ; x != t.sent; x = x.parent {
-		if !isLeft {
-			z := x.right
+func (t *Tree) InsertLast(data types.Data) *Node {
+	z := &Node{factor: Balanced, data: data}
+	x, childIsLeft := t.end(), true
+	for y := x.left; y != nil; {
+		x, childIsLeft = y, t.less(data, y.data)
+		if childIsLeft {
+			y = y.left
+		} else {
+			y = y.right
+		}
+	}
+	z.parent = x
+	if childIsLeft {
+		x.left = z
+	} else {
+		x.right = z
+	}
+	if t.begin.left != nil {
+		t.begin = t.begin.left
+	}
+	t.balanceAfterInsert(x, childIsLeft)
+	t.size++
+	return z
+}
+
+func (t *Tree) balanceAfterInsert(x *Node, childIsLeft bool) {
+	for ; x != t.end(); x = x.parent {
+		if !childIsLeft {
 			switch x.factor {
-			case leftHeavy:
-				x.factor = balanced
+			case LeftHeavy:
+				x.factor = Balanced
 				return
-			case rightHeavy:
-				if z.factor == leftHeavy {
+			case RightHeavy:
+				if x.right.factor == LeftHeavy {
 					rotateRightLeft(x)
 				} else {
 					rotateLeft(x)
 				}
 				return
 			default:
-				x.factor = rightHeavy
-				isLeft = x == x.parent.left
+				x.factor = RightHeavy
 			}
 		} else {
-			z := x.left
 			switch x.factor {
-			case rightHeavy:
-				x.factor = balanced
+			case RightHeavy:
+				x.factor = Balanced
 				return
-			case leftHeavy:
-				if z.factor == rightHeavy {
+			case LeftHeavy:
+				if x.left.factor == RightHeavy {
 					rotateLeftRight(x)
 				} else {
 					rotateRight(x)
 				}
 				return
 			default:
-				x.factor = leftHeavy
-				isLeft = x == x.parent.left
+				x.factor = LeftHeavy
 			}
 		}
+		childIsLeft = x == x.parent.left
 	}
 }
 
-func (t *Tree) delete(z *Node) {
-
-	if z.data == 5577006791947779410 {
-		fmt.Println("~~~~~~~~~~~~")
+func (t *Tree) Delete(z *Node) {
+	if t.begin == z {
+		t.begin = z.Next()
 	}
-
-	var x, n *Node
-	var isLeft bool
+	x, childIsLeft := z.parent, z == z.parent.left
 	switch {
 	case z.left == nil:
-		x, n = z.parent, z.right
-		isLeft = z == z.parent.left
-		transplant(z, n)
+		transplant(z, z.right)
 	case z.right == nil:
-		x, n = z.parent, z.left
-		isLeft = z == z.parent.left
-		transplant(z, n)
+		transplant(z, z.left)
 	default:
 		y := minimum(z.right)
-		x, n = y, y.right
-		isLeft = y == y.parent.left
+		x, childIsLeft = y, y == y.parent.left
 		if y.parent != z {
 			x = y.parent
-			transplant(y, n)
+			transplant(y, y.right)
 			y.right = z.right
 			y.right.parent = y
 		}
@@ -195,58 +218,57 @@ func (t *Tree) delete(z *Node) {
 		y.left.parent = y
 		y.factor = z.factor
 	}
-	t.balanceAfterDelete(x, isLeft)
+	t.balanceAfterDelete(x, childIsLeft)
 	t.size--
 }
 
-func (t *Tree) balanceAfterDelete(x *Node, isLeft bool) {
-	for ; x != t.sent; x = x.parent {
-		if isLeft {
+func (t *Tree) balanceAfterDelete(x *Node, childIsLeft bool) {
+	for ; x != t.end(); x = x.parent {
+		if childIsLeft {
 			switch x.factor {
-			case balanced:
-				x.factor = rightHeavy
+			case Balanced:
+				x.factor = RightHeavy
 				return
-			case rightHeavy:
+			case RightHeavy:
 				b := x.right.factor
-				if b == leftHeavy {
+				if b == LeftHeavy {
 					rotateRightLeft(x)
 				} else {
 					rotateLeft(x)
 				}
-				if b != balanced {
-					x = x.parent
-					isLeft = x == x.parent.left
-					continue
+				if b == Balanced {
+					return
 				}
-				return
+				x = x.parent
 			default:
-				x.factor = balanced
-				isLeft = x == x.parent.left
+				x.factor = Balanced
 			}
 		} else {
 			switch x.factor {
-			case balanced:
-				x.factor = leftHeavy
+			case Balanced:
+				x.factor = LeftHeavy
 				return
-			case leftHeavy:
+			case LeftHeavy:
 				b := x.left.factor
-				if b == rightHeavy {
+				if b == RightHeavy {
 					rotateLeftRight(x)
 				} else {
 					rotateRight(x)
 				}
-				if b != balanced {
-					x = x.parent
-					isLeft = x == x.parent.left
-					continue
+				if b == Balanced {
+					return
 				}
-				return
+				x = x.parent
 			default:
-				x.factor = balanced
-				isLeft = x == x.parent.left
+				x.factor = Balanced
 			}
 		}
+		childIsLeft = x == x.parent.left
 	}
+}
+
+func (t *Tree) end() *Node {
+	return &t.sentinel
 }
 
 func transplant(u *Node, v *Node) {
@@ -274,26 +296,6 @@ func maximum(x *Node) *Node {
 	return x
 }
 
-func successor(x *Node) *Node {
-	if x.right != nil {
-		return minimum(x.right)
-	}
-	for x == x.parent.right {
-		x = x.parent
-	}
-	return x.parent
-}
-
-func predecessor(x *Node) *Node {
-	if x.left != nil {
-		return maximum(x.left)
-	}
-	for x == x.parent.left {
-		x = x.parent
-	}
-	return x.parent
-}
-
 func rotateLeft(x *Node) {
 	z := x.right
 	x.right = z.left
@@ -308,10 +310,10 @@ func rotateLeft(x *Node) {
 	}
 	z.left = x
 	x.parent = z
-	if z.factor == balanced {
-		x.factor, z.factor = rightHeavy, leftHeavy
+	if z.factor == Balanced {
+		x.factor, z.factor = RightHeavy, LeftHeavy
 	} else {
-		x.factor, z.factor = balanced, balanced
+		x.factor, z.factor = Balanced, Balanced
 	}
 }
 
@@ -329,10 +331,10 @@ func rotateRight(x *Node) {
 	}
 	z.right = x
 	x.parent = z
-	if z.factor == balanced {
-		x.factor, z.factor = leftHeavy, rightHeavy
+	if z.factor == Balanced {
+		x.factor, z.factor = LeftHeavy, RightHeavy
 	} else {
-		x.factor, z.factor = balanced, balanced
+		x.factor, z.factor = Balanced, Balanced
 	}
 }
 
@@ -358,14 +360,14 @@ func rotateRightLeft(x *Node) {
 	y.left = x
 	x.parent = y
 	switch y.factor {
-	case rightHeavy:
-		x.factor, z.factor = leftHeavy, balanced
-	case leftHeavy:
-		x.factor, z.factor = balanced, rightHeavy
+	case RightHeavy:
+		x.factor, z.factor = LeftHeavy, Balanced
+	case LeftHeavy:
+		x.factor, z.factor = Balanced, RightHeavy
 	default:
-		x.factor, z.factor = balanced, balanced
+		x.factor, z.factor = Balanced, Balanced
 	}
-	y.factor = balanced
+	y.factor = Balanced
 }
 
 func rotateLeftRight(x *Node) {
@@ -390,12 +392,12 @@ func rotateLeftRight(x *Node) {
 	y.right = x
 	x.parent = y
 	switch y.factor {
-	case leftHeavy:
-		x.factor, z.factor = rightHeavy, balanced
-	case rightHeavy:
-		x.factor, z.factor = balanced, leftHeavy
+	case LeftHeavy:
+		x.factor, z.factor = RightHeavy, Balanced
+	case RightHeavy:
+		x.factor, z.factor = Balanced, LeftHeavy
 	default:
-		x.factor, z.factor = balanced, balanced
+		x.factor, z.factor = Balanced, Balanced
 	}
-	y.factor = balanced
+	y.factor = Balanced
 }
