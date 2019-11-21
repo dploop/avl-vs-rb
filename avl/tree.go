@@ -48,6 +48,22 @@ func (t *Tree) ReverseEnd() *Node {
 	return t.begin
 }
 
+func (t *Tree) FindAny(data types.Data) *Node {
+	x := t.end()
+	for y := x.left; y != nil; {
+		stats.FindLoopCounter++
+		switch {
+		case t.less(data, y.data):
+			y = y.left
+		case t.less(y.data, data):
+			y = y.right
+		default:
+			return y
+		}
+	}
+	return x
+}
+
 func (t *Tree) FindFirst(data types.Data) *Node {
 	x := t.end()
 	for y := x.left; y != nil; {
@@ -113,11 +129,13 @@ func (t *Tree) Clear() {
 }
 
 func (t *Tree) InsertFirst(z *Node) {
-	z.factor = Balanced
+	z.parent = nil
+	z.left, z.right, z.factor = nil, nil, Balanced
 	x, childIsLeft := t.end(), true
 	for y := x.left; y != nil; {
 		stats.InsertFindLoopCounter++
-		x, childIsLeft = y, !t.less(y.data, z.data)
+		ydata := y.data
+		x, childIsLeft = y, !t.less(ydata, z.data)
 		if childIsLeft {
 			y = y.left
 		} else {
@@ -138,7 +156,8 @@ func (t *Tree) InsertFirst(z *Node) {
 }
 
 func (t *Tree) InsertLast(z *Node) *Node {
-	z.factor = Balanced
+	z.parent = nil
+	z.left, z.right, z.factor = nil, nil, Balanced
 	x, childIsLeft := t.end(), true
 	for y := x.left; y != nil; {
 		stats.InsertFindLoopCounter++
