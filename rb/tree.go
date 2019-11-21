@@ -134,8 +134,7 @@ func (t *Tree) InsertFirst(z *Node) {
 	x, childIsLeft := t.end(), true
 	for y := x.left; y != nil; {
 		stats.InsertFindLoopCounter++
-		ydata := y.data
-		x, childIsLeft = y, !t.less(ydata, z.data)
+		x, childIsLeft = y, !t.less(y.data, z.data)
 		if childIsLeft {
 			y = y.left
 		} else {
@@ -161,8 +160,7 @@ func (t *Tree) InsertLast(z *Node) {
 	x, childIsLeft := t.end(), true
 	for y := x.left; y != nil; {
 		stats.InsertFindLoopCounter++
-		ydata := y.data
-		x, childIsLeft = y, t.less(z.data, ydata)
+		x, childIsLeft = y, t.less(z.data, y.data)
 		if childIsLeft {
 			y = y.left
 		} else {

@@ -77,7 +77,7 @@ func main() {
 		}
 		rand.Seed(tseed)
 		rand.Shuffle(tsize, func(i, j int) {
-			k := math.Round(float64(j)*trand)
+			k := math.Round(float64(j) * trand)
 			j = i - int(k)
 			s[i], s[j] = s[j], s[i]
 		})
@@ -141,7 +141,7 @@ func main() {
 		}
 		rand.Seed(tseed)
 		rand.Shuffle(tsize, func(i, j int) {
-			k := math.Round(float64(j)*trand)
+			k := math.Round(float64(j) * trand)
 			j = i - int(k)
 			s[i], s[j] = s[j], s[i]
 		})
