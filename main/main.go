@@ -4,15 +4,11 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"math"
 	"math/rand"
 	"net/http"
 	_ "net/http/pprof"
-	"runtime"
 	"time"
 
-	"github.com/dploop/avl-vs-rb/avl"
-	"github.com/dploop/avl-vs-rb/rb"
 	"github.com/dploop/avl-vs-rb/stats"
 	"github.com/dploop/avl-vs-rb/types"
 )
@@ -28,174 +24,51 @@ func main() {
 	}()
 
 	var (
-		thelp bool
-		tsize int
-		trand float64
-		ttype string
-		tseed int64
+		oHelp bool
+		oType string
+		oSize int
+		oRand float64
+		oSeed int64
 	)
-	flag.BoolVar(&thelp, "h", false, "show help messages")
-	flag.IntVar(&tsize, "n", 20000000, "tree size")
-	flag.Float64Var(&trand, "r", 1, "data randomness: [0, 1]")
-	flag.StringVar(&ttype, "t", "avl", "tree type: avl | rb")
-	flag.Int64Var(&tseed, "s", 1, "random seed, must be positive")
-	flag.Parse()
-	if thelp {
+	parse(&oHelp, &oType, &oSize, &oRand, &oSeed)
+	if oHelp {
 		flag.Usage()
 		return
 	}
-	if tsize <= 0 {
-		tsize = 20000000
-	}
-	if trand < 0 {
-		trand = 0
-	}
-	if trand > 1 {
-		trand = 1
-	}
-	if ttype != "rb" {
-		ttype = "avl"
-	}
-	if tseed < 1 {
-		tseed = 1
-	}
-	fmt.Println("================ Input Arguments ================")
-	fmt.Printf("type: %s, size: %v, rand: %v, seed: %v\n", ttype, tsize, trand, tseed)
-	fmt.Println()
+	fmt.Println("==========>>>>> Input Arguments")
+	fmt.Printf("type: %s, size: %v, rand: %v, seed: %v\n", oType, oSize, oRand, oSeed)
 
-	var (
-		insertElapse time.Duration
-		findElapse   time.Duration
-		deleteElapse time.Duration
-		height       int
-	)
-	if ttype == "avl" {
-		s := make([]*avl.Node, tsize)
-		for v := 0; v < tsize; v++ {
-			s[v] = new(avl.Node)
-			s[v].Set(v)
+	tree, nodes := newTree(oType), newNodes(oSize)
+	rand.Seed(oSeed)
+	for {
+		pause()
+		shuffle(nodes, oRand)
+		pause()
+		start := time.Now()
+		stats.Reset()
+		for _, node := range nodes {
+			tree.Insert(node)
 		}
-		rand.Seed(tseed)
-		rand.Shuffle(tsize, func(i, j int) {
-			k := math.Round(float64(j) * trand)
-			j = i - int(k)
-			s[i], s[j] = s[j], s[i]
-		})
-		t := avl.New(less)
-		runtime.GC()
-		for {
-			stats.Reset()
-			fmt.Println("================ Insert Will Begin in 10s ================")
-			// time.Sleep(10 * time.Second)
-			insertStart := time.Now()
-			for v := 0; v < tsize; v++ {
-				t.InsertLast(s[v])
-			}
-			insertElapse = time.Since(insertStart)
-			fmt.Println("================ Insert Done ================")
-			// time.Sleep(10 * time.Second)
-			fmt.Println("================ Find Will Begin in 10s ================")
-			// time.Sleep(10 * time.Second)
-			height = t.HeightForStats()
-			findStart := time.Now()
-			for v := 0; v < tsize; v++ {
-				t.FindAny(s[v].Get())
-			}
-			findElapse = time.Since(findStart)
-			fmt.Println("================ Find Done ================")
-			// time.Sleep(10 * time.Second)
-			fmt.Println("================ Delete Will Begin in 10s ================")
-			// time.Sleep(10 * time.Second)
-			deleteStart := time.Now()
-			for v := 0; v < tsize; v++ {
-				t.Delete(s[v])
-			}
-			deleteElapse = time.Since(deleteStart)
-			fmt.Println("================ Delete Done ================")
-			// time.Sleep(10 * time.Second)
-			fmt.Println("================ Benchmark Result ================")
-			fmt.Printf("type: %s, size: %v, rand: %v, seed: %v\n", ttype, tsize, trand, tseed)
-			fmt.Println("              insert elapse: ", insertElapse.Milliseconds())
-			fmt.Println("   insert find loop counter: ", stats.findLoopCounter)
-			fmt.Println("insert balance loop counter: ", stats.fixupCounter)
-			fmt.Println("      insert rotate counter: ", stats.rotateCounter)
-			fmt.Println("                find elapse: ", findElapse.Milliseconds())
-			fmt.Println("                     height: ", height)
-			fmt.Println("          find loop counter: ", stats.findLoopCounter)
-			fmt.Println("              delete elapse: ", deleteElapse.Milliseconds())
-			fmt.Println("delete balance loop counter: ", stats.DeleteFixupCounter)
-			fmt.Println("      delete rotate counter: ", stats.DeleteRotateCounter)
-			fmt.Println("   insert find loop average: ", float64(stats.findLoopCounter)/float64(tsize))
-			fmt.Println("insert balance loop average: ", float64(stats.fixupCounter)/float64(tsize))
-			fmt.Println("      insert rotate average: ", float64(stats.rotateCounter)/float64(tsize))
-			fmt.Println("          find loop average: ", float64(stats.findLoopCounter)/float64(tsize))
-			fmt.Println("delete balance loop average: ", float64(stats.DeleteFixupCounter)/float64(tsize))
-			fmt.Println("      delete rotate average: ", float64(stats.DeleteRotateCounter)/float64(tsize))
-			fmt.Println()
+		fmt.Println("==========>>>>> Insert Results")
+		fmt.Printf("insert elapse: %vms\n", time.Since(start).Milliseconds())
+		fmt.Printf("insert search: %.2f\n", float64(stats.GetSearchCounter())/float64(oSize))
+		fmt.Printf("insert  fixup: %.2f\n", float64(stats.GetFixupCounter())/float64(oSize))
+		fmt.Printf("insert  extra: %.2f\n", float64(stats.GetExtraCounter())/float64(oSize))
+		fmt.Printf("insert rotate: %.2f\n", float64(stats.GetRotateCounter())/float64(oSize))
+		pause()
+		shuffle(nodes, oRand)
+		pause()
+		start = time.Now()
+		stats.Reset()
+		for _, node := range nodes {
+			_ = tree.Find(node.Data)
+			tree.Delete(node)
 		}
-	} else {
-		s := make([]*rb.Node, tsize)
-		for v := 0; v < tsize; v++ {
-			s[v] = new(rb.Node)
-			s[v].Set(v)
-		}
-		rand.Seed(tseed)
-		rand.Shuffle(tsize, func(i, j int) {
-			k := math.Round(float64(j) * trand)
-			j = i - int(k)
-			s[i], s[j] = s[j], s[i]
-		})
-		t := rb.New(less)
-		runtime.GC()
-		for {
-			stats.Reset()
-			fmt.Println("================ Insert Will Begin in 10s ================")
-			// time.Sleep(10 * time.Second)
-			insertStart := time.Now()
-			for v := 0; v < tsize; v++ {
-				t.InsertLast(s[v])
-			}
-			insertElapse = time.Since(insertStart)
-			fmt.Println("================ Insert Done ================")
-			// time.Sleep(10 * time.Second)
-			fmt.Println("================ Find Will Begin in 10s ================")
-			// time.Sleep(10 * time.Second)
-			height = t.HeightForStats()
-			findStart := time.Now()
-			for v := 0; v < tsize; v++ {
-				t.FindAny(s[v].Get())
-			}
-			findElapse = time.Since(findStart)
-			fmt.Println("================ Find Done ================")
-			// time.Sleep(10 * time.Second)
-			fmt.Println("================ Delete Will Begin in 10s ================")
-			// time.Sleep(10 * time.Second)
-			deleteStart := time.Now()
-			for v := 0; v < tsize; v++ {
-				t.Delete(s[v])
-			}
-			deleteElapse = time.Since(deleteStart)
-			fmt.Println("================ Delete Done ================")
-			// time.Sleep(10 * time.Second)
-			fmt.Println("================ Benchmark Result ================")
-			fmt.Printf("type: %s, size: %v, rand: %v, seed: %v\n", ttype, tsize, trand, tseed)
-			fmt.Println("              insert elapse: ", insertElapse.Milliseconds())
-			fmt.Println("   insert find loop counter: ", stats.findLoopCounter)
-			fmt.Println("insert balance loop counter: ", stats.fixupCounter)
-			fmt.Println("      insert rotate counter: ", stats.rotateCounter)
-			fmt.Println("                find elapse: ", findElapse.Milliseconds())
-			fmt.Println("                     height: ", height)
-			fmt.Println("          find loop counter: ", stats.findLoopCounter)
-			fmt.Println("              delete elapse: ", deleteElapse.Milliseconds())
-			fmt.Println("delete balance loop counter: ", stats.DeleteFixupCounter)
-			fmt.Println("      delete rotate counter: ", stats.DeleteRotateCounter)
-			fmt.Println("   insert find loop average: ", float64(stats.findLoopCounter)/float64(tsize))
-			fmt.Println("insert balance loop average: ", float64(stats.fixupCounter)/float64(tsize))
-			fmt.Println("      insert rotate average: ", float64(stats.rotateCounter)/float64(tsize))
-			fmt.Println("          find loop average: ", float64(stats.findLoopCounter)/float64(tsize))
-			fmt.Println("delete balance loop average: ", float64(stats.DeleteFixupCounter)/float64(tsize))
-			fmt.Println("      delete rotate average: ", float64(stats.DeleteRotateCounter)/float64(tsize))
-			fmt.Println()
-		}
+		fmt.Println("==========>>>>> Delete Results")
+		fmt.Printf("delete elapse: %vms\n", time.Since(start).Milliseconds())
+		fmt.Printf("delete search: %.2f\n", float64(stats.GetSearchCounter())/float64(oSize))
+		fmt.Printf("delete  fixup: %.2f\n", float64(stats.GetFixupCounter())/float64(oSize))
+		fmt.Printf("delete  extra: %.2f\n", float64(stats.GetExtraCounter())/float64(oSize))
+		fmt.Printf("delete rotate: %.2f\n", float64(stats.GetRotateCounter())/float64(oSize))
 	}
 }
