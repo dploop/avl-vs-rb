@@ -19,7 +19,7 @@ func (t *Tree) Insert(z *base.Node) {
 	z.Parent, z.Left, z.Right = nil, nil, nil
 	x, childIsLeft := t.End(), true
 	for y := x.Left; y != nil; {
-		stats.InsertFindLoopCounter++
+		stats.AddSearchCounter(1)
 		x, childIsLeft = y, t.Less(z.Data, y.Data)
 		if childIsLeft {
 			y = y.Left
@@ -42,39 +42,39 @@ func (t *Tree) Insert(z *base.Node) {
 
 func (t *Tree) balanceAfterInsert(x *base.Node, childIsLeft bool) {
 	for ; x != t.End(); x = x.Parent {
-		stats.InsertBalanceLoopCounter++
+		stats.AddFixupCounter(1)
 		if !childIsLeft {
 			switch x.Extra {
 			case LeftHeavy:
+				stats.AddExtraCounter(1)
 				x.Extra = Balanced
 				return
 			case RightHeavy:
 				if x.Right.Extra == LeftHeavy {
-					stats.InsertRotateCounter += 2
 					rotateRightLeft(x)
 				} else {
-					stats.InsertRotateCounter++
 					rotateLeft(x)
 				}
 				return
 			default:
+				stats.AddExtraCounter(1)
 				x.Extra = RightHeavy
 			}
 		} else {
 			switch x.Extra {
 			case RightHeavy:
+				stats.AddExtraCounter(1)
 				x.Extra = Balanced
 				return
 			case LeftHeavy:
 				if x.Left.Extra == RightHeavy {
-					stats.InsertRotateCounter += 2
 					rotateLeftRight(x)
 				} else {
-					stats.InsertRotateCounter++
 					rotateRight(x)
 				}
 				return
 			default:
+				stats.AddExtraCounter(1)
 				x.Extra = LeftHeavy
 			}
 		}
@@ -127,19 +127,18 @@ func (t *Tree) Delete(z *base.Node) {
 
 func (t *Tree) balanceAfterDelete(x *base.Node, childIsLeft bool) {
 	for ; x != t.End(); x = x.Parent {
-		stats.DeleteBalanceLoopCounter++
+		stats.AddFixupCounter(1)
 		if childIsLeft {
 			switch x.Extra {
 			case Balanced:
+				stats.AddExtraCounter(1)
 				x.Extra = RightHeavy
 				return
 			case RightHeavy:
 				b := x.Right.Extra
 				if b == LeftHeavy {
-					stats.DeleteRotateCounter += 2
 					rotateRightLeft(x)
 				} else {
-					stats.DeleteRotateCounter++
 					rotateLeft(x)
 				}
 				if b == Balanced {
@@ -147,20 +146,20 @@ func (t *Tree) balanceAfterDelete(x *base.Node, childIsLeft bool) {
 				}
 				x = x.Parent
 			default:
+				stats.AddExtraCounter(1)
 				x.Extra = Balanced
 			}
 		} else {
 			switch x.Extra {
 			case Balanced:
+				stats.AddExtraCounter(1)
 				x.Extra = LeftHeavy
 				return
 			case LeftHeavy:
 				b := x.Left.Extra
 				if b == RightHeavy {
-					stats.DeleteRotateCounter += 2
 					rotateLeftRight(x)
 				} else {
-					stats.DeleteRotateCounter++
 					rotateRight(x)
 				}
 				if b == Balanced {
@@ -168,6 +167,7 @@ func (t *Tree) balanceAfterDelete(x *base.Node, childIsLeft bool) {
 				}
 				x = x.Parent
 			default:
+				stats.AddExtraCounter(1)
 				x.Extra = Balanced
 			}
 		}
@@ -176,6 +176,7 @@ func (t *Tree) balanceAfterDelete(x *base.Node, childIsLeft bool) {
 }
 
 func rotateLeft(x *base.Node) {
+	stats.AddRotateCounter(1)
 	z := x.Right
 	x.Right = z.Left
 	if z.Left != nil {
@@ -190,13 +191,16 @@ func rotateLeft(x *base.Node) {
 	z.Left = x
 	x.Parent = z
 	if z.Extra == Balanced {
+		stats.AddExtraCounter(2)
 		x.Extra, z.Extra = RightHeavy, LeftHeavy
 	} else {
+		stats.AddExtraCounter(2)
 		x.Extra, z.Extra = Balanced, Balanced
 	}
 }
 
 func rotateRight(x *base.Node) {
+	stats.AddRotateCounter(1)
 	z := x.Left
 	x.Left = z.Right
 	if z.Right != nil {
@@ -211,13 +215,16 @@ func rotateRight(x *base.Node) {
 	z.Right = x
 	x.Parent = z
 	if z.Extra == Balanced {
+		stats.AddExtraCounter(2)
 		x.Extra, z.Extra = LeftHeavy, RightHeavy
 	} else {
+		stats.AddExtraCounter(2)
 		x.Extra, z.Extra = Balanced, Balanced
 	}
 }
 
 func rotateRightLeft(x *base.Node) {
+	stats.AddRotateCounter(2)
 	z := x.Right
 	y := z.Left
 	z.Left = y.Right
@@ -240,16 +247,19 @@ func rotateRightLeft(x *base.Node) {
 	x.Parent = y
 	switch y.Extra {
 	case RightHeavy:
-		x.Extra, z.Extra = LeftHeavy, Balanced
+		stats.AddExtraCounter(3)
+		x.Extra, y.Extra, z.Extra = LeftHeavy, Balanced, Balanced
 	case LeftHeavy:
-		x.Extra, z.Extra = Balanced, RightHeavy
+		stats.AddExtraCounter(3)
+		x.Extra, y.Extra, z.Extra = Balanced, Balanced, RightHeavy
 	default:
+		stats.AddExtraCounter(2)
 		x.Extra, z.Extra = Balanced, Balanced
 	}
-	y.Extra = Balanced
 }
 
 func rotateLeftRight(x *base.Node) {
+	stats.AddRotateCounter(2)
 	z := x.Left
 	y := z.Right
 	z.Right = y.Left
@@ -272,11 +282,13 @@ func rotateLeftRight(x *base.Node) {
 	x.Parent = y
 	switch y.Extra {
 	case LeftHeavy:
-		x.Extra, z.Extra = RightHeavy, Balanced
+		stats.AddExtraCounter(3)
+		x.Extra, y.Extra, z.Extra = RightHeavy, Balanced, Balanced
 	case RightHeavy:
-		x.Extra, z.Extra = Balanced, LeftHeavy
+		stats.AddExtraCounter(3)
+		x.Extra, y.Extra, z.Extra = Balanced, Balanced, LeftHeavy
 	default:
+		stats.AddExtraCounter(2)
 		x.Extra, z.Extra = Balanced, Balanced
 	}
-	y.Extra = Balanced
 }

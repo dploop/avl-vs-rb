@@ -19,7 +19,7 @@ func (t *Tree) Insert(z *base.Node) {
 	z.Left, z.Right, z.Extra = nil, nil, Red
 	x, childIsLeft := t.End(), true
 	for y := x.Left; y != nil; {
-		stats.InsertFindLoopCounter++
+		stats.AddSearchCounter(1)
 		x, childIsLeft = y, t.Less(z.Data, y.Data)
 		if childIsLeft {
 			y = y.Left
@@ -42,10 +42,11 @@ func (t *Tree) Insert(z *base.Node) {
 
 func (t *Tree) balanceAfterInsert(x *base.Node, z *base.Node) {
 	for ; x != t.End() && x.Extra == Red; x = z.Parent {
-		stats.InsertBalanceLoopCounter++
+		stats.AddFixupCounter(1)
 		if x == x.Parent.Left {
 			y := x.Parent.Right
 			if isRed(y) {
+				stats.AddExtraCounter(3)
 				z = z.Parent
 				z.Extra = Black
 				z = z.Parent
@@ -54,19 +55,19 @@ func (t *Tree) balanceAfterInsert(x *base.Node, z *base.Node) {
 			} else {
 				if z == x.Right {
 					z = x
-					stats.InsertRotateCounter++
 					rotateLeft(z)
 				}
+				stats.AddExtraCounter(2)
 				z = z.Parent
 				z.Extra = Black
 				z = z.Parent
 				z.Extra = Red
-				stats.InsertRotateCounter++
 				rotateRight(z)
 			}
 		} else {
 			y := x.Parent.Left
 			if isRed(y) {
+				stats.AddExtraCounter(3)
 				z = z.Parent
 				z.Extra = Black
 				z = z.Parent
@@ -75,14 +76,13 @@ func (t *Tree) balanceAfterInsert(x *base.Node, z *base.Node) {
 			} else {
 				if z == x.Left {
 					z = x
-					stats.InsertRotateCounter++
 					rotateRight(z)
 				}
+				stats.AddExtraCounter(2)
 				z = z.Parent
 				z.Extra = Black
 				z = z.Parent
 				z.Extra = Red
-				stats.InsertRotateCounter++
 				rotateLeft(z)
 			}
 		}
@@ -94,7 +94,7 @@ func (t *Tree) Delete(z *base.Node) {
 	if t.Start == z {
 		t.Start = z.Next()
 	}
-	x, color := z.Parent, z.Extra
+	x, deletedColor := z.Parent, z.Extra
 	var n *base.Node
 	switch {
 	case z.Left == nil:
@@ -105,7 +105,7 @@ func (t *Tree) Delete(z *base.Node) {
 		base.Transplant(z, n)
 	default:
 		y := base.Minimum(z.Right)
-		x, color = y, y.Extra
+		x, deletedColor = y, y.Extra
 		n = y.Right
 		if y.Parent != z {
 			x = y.Parent
@@ -118,7 +118,7 @@ func (t *Tree) Delete(z *base.Node) {
 		y.Left.Parent = y
 		y.Extra = z.Extra
 	}
-	if color == Black {
+	if deletedColor == Black {
 		t.balanceAfterDelete(x, n)
 	}
 	t.Size--
@@ -126,69 +126,73 @@ func (t *Tree) Delete(z *base.Node) {
 
 func (t *Tree) balanceAfterDelete(x *base.Node, n *base.Node) {
 	for ; x != t.End() && isBlack(n); x = n.Parent {
-		stats.DeleteBalanceLoopCounter++
+		stats.AddFixupCounter(1)
 		if n == x.Left {
 			z := x.Right
 			if isRed(z) {
+				stats.AddExtraCounter(2)
 				z.Extra = Black
 				x.Extra = Red
-				stats.DeleteRotateCounter++
 				rotateLeft(x)
 				z = x.Right
 			}
 			if isBlack(z.Left) && isBlack(z.Right) {
+				stats.AddExtraCounter(1)
 				z.Extra = Red
 				n = x
 			} else {
 				if isBlack(z.Right) {
+					stats.AddExtraCounter(2)
 					z.Left.Extra = Black
 					z.Extra = Red
-					stats.DeleteRotateCounter++
 					rotateRight(z)
 					z = x.Right
 				}
+				stats.AddExtraCounter(3)
 				z.Extra = x.Extra
 				x.Extra = Black
 				z.Right.Extra = Black
-				stats.DeleteRotateCounter++
 				rotateLeft(x)
 				n = t.End().Left
 			}
 		} else {
 			z := x.Left
 			if isRed(z) {
+				stats.AddExtraCounter(2)
 				z.Extra = Black
 				x.Extra = Red
-				stats.DeleteRotateCounter++
 				rotateRight(x)
 				z = x.Left
 			}
 			if isBlack(z.Right) && isBlack(z.Left) {
+				stats.AddExtraCounter(1)
 				z.Extra = Red
 				n = x
 			} else {
 				if isBlack(z.Left) {
+					stats.AddExtraCounter(2)
 					z.Right.Extra = Black
 					z.Extra = Red
-					stats.DeleteRotateCounter++
 					rotateLeft(z)
 					z = x.Left
 				}
+				stats.AddExtraCounter(3)
 				z.Extra = x.Extra
 				x.Extra = Black
 				z.Left.Extra = Black
-				stats.DeleteRotateCounter++
 				rotateRight(x)
 				n = t.End().Left
 			}
 		}
 	}
 	if isRed(n) {
+		stats.AddExtraCounter(1)
 		n.Extra = Black
 	}
 }
 
 func rotateLeft(x *base.Node) {
+	stats.AddRotateCounter(1)
 	y := x.Right
 	x.Right = y.Left
 	if x.Right != nil {
@@ -205,6 +209,7 @@ func rotateLeft(x *base.Node) {
 }
 
 func rotateRight(x *base.Node) {
+	stats.AddRotateCounter(1)
 	y := x.Left
 	x.Left = y.Right
 	if x.Left != nil {

@@ -57,7 +57,7 @@ func (t *Tree) Clear() {
 func (t *Tree) Find(data types.Data) *Node {
 	x := t.End()
 	for y := x.Left; y != nil; {
-		stats.FindLoopCounter++
+		stats.AddSearchCounter(1)
 		switch {
 		case t.Less(data, y.Data):
 			y = y.Left
