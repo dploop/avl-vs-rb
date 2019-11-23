@@ -42,7 +42,7 @@ func (t *Tree) Insert(z *base.Node) {
 
 func (t *Tree) balanceAfterInsert(x *base.Node, z *base.Node) {
 	for ; x != t.End() && x.Extra == Red; x = z.Parent {
-		stats.AddFixupCounter(1)
+		stats.AddFixupCounter(2)
 		if x == x.Parent.Left {
 			y := x.Parent.Right
 			if isRed(y) {
