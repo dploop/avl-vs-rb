@@ -1,3 +1,3 @@
 module github.com/dploop/avl-vs-rb
 
-go 1.13
+go 1.15

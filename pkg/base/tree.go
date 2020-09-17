@@ -1,13 +1,11 @@
 package base
 
 import (
-	"errors"
-
-	"github.com/dploop/avl-vs-rb/stats"
-	"github.com/dploop/avl-vs-rb/types"
+	"github.com/dploop/avl-vs-rb/pkg/stats"
+	"github.com/dploop/avl-vs-rb/pkg/types"
 )
 
-type ITree interface {
+type Tree interface {
 	GetSize() types.Size
 	IsEmpty() bool
 	Begin() *Node
@@ -19,45 +17,49 @@ type ITree interface {
 	GetHeight() types.Size
 }
 
-type Tree struct {
+type TreeImpl struct {
 	Sentinel Node
 	Start    *Node
 	Size     types.Size
 	Less     types.Less
 }
 
-func New(less types.Less) *Tree {
-	t := &Tree{Less: less}
+func New(less types.Less) *TreeImpl {
+	t := new(TreeImpl)
 	t.Start = &t.Sentinel
+	t.Less = less
+
 	return t
 }
 
-func (t *Tree) GetSize() types.Size {
+func (t *TreeImpl) GetSize() types.Size {
 	return t.Size
 }
 
-func (t *Tree) IsEmpty() bool {
+func (t *TreeImpl) IsEmpty() bool {
 	return t.GetSize() == 0
 }
 
-func (t *Tree) Begin() *Node {
+func (t *TreeImpl) Begin() *Node {
 	return t.Start
 }
 
-func (t *Tree) End() *Node {
+func (t *TreeImpl) End() *Node {
 	return &t.Sentinel
 }
 
-func (t *Tree) Clear() {
+func (t *TreeImpl) Clear() {
 	t.End().Left = nil
 	t.Start = t.End()
 	t.Size = 0
 }
 
-func (t *Tree) Find(data types.Data) *Node {
+func (t *TreeImpl) Find(data types.Data) *Node {
 	x := t.End()
+
 	for y := x.Left; y != nil; {
 		stats.AddSearchCounter(1)
+
 		switch {
 		case t.Less(data, y.Data):
 			y = y.Left
@@ -67,18 +69,19 @@ func (t *Tree) Find(data types.Data) *Node {
 			return y
 		}
 	}
+
 	return x
 }
 
-func (t *Tree) Insert(_ *Node) {
-	panic(errors.New("unimplemented"))
+func (t *TreeImpl) Insert(_ *Node) {
+	panic(types.ErrUnimplemented)
 }
 
-func (t *Tree) Delete(_ *Node) {
-	panic(errors.New("unimplemented"))
+func (t *TreeImpl) Delete(_ *Node) {
+	panic(types.ErrUnimplemented)
 }
 
-func (t *Tree) GetHeight() types.Size {
+func (t *TreeImpl) GetHeight() types.Size {
 	return getHeight(t.End().Left)
 }
 
@@ -86,10 +89,13 @@ func getHeight(x *Node) types.Size {
 	if x == nil {
 		return 0
 	}
+
 	leftHeight := getHeight(x.Left)
 	rightHeight := getHeight(x.Right)
+
 	if leftHeight < rightHeight {
 		leftHeight = rightHeight
 	}
+
 	return leftHeight + 1
 }

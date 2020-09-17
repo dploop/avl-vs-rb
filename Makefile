@@ -1,7 +1,10 @@
-.PHONY: main
+MAIN_ROOT ?= ./cmd/avl-vs-rb
 
-main:
-	go build -o avl-vs-rb ./main
+build:
+	cd $(MAIN_ROOT) && go build
+
+run:
+	cd $(MAIN_ROOT) && go run .
 
 lint:
 	golangci-lint run
